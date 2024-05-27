@@ -11,7 +11,7 @@ CERT_TRANSPARENCY_MODE = 1
 DORKING_MODE = 2
 DNS_AGGREGATORS_MODE = 3
 
-def bruteforce(args, domain, threads):
+def bruteforce(args, domain, max_threads):
     print("\nPerforming bruteforce attack (active)")
 
     #check if wordlist is present and valid        
@@ -31,12 +31,12 @@ def bruteforce(args, domain, threads):
         if subdomain_ip is not None:
             utility.output(args, (subdomain, subdomain_ip), True)
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_threads) as executor:
         executor.map(enumerate_subdomains, lines, [domain] * len(lines))
 
     
 
-def cert_transparency(args, domain, threads):
+def cert_transparency(args, domain, max_threads):
 
     print("\nPerforming certificate transparency search (passive)...")
 
@@ -96,7 +96,7 @@ def cert_transparency(args, domain, threads):
             print("Failed to parse JSON from " + source)
             continue
 
-def dorking(args, domain, threads):
+def dorking(args, domain, max_threads):
 
     print("\nPerforming dorking search (passive)...")
 
@@ -138,7 +138,7 @@ def dorking(args, domain, threads):
     for search_engine in search_engines:
         methods[search_engine]()
 
-def dns_aggregators(args, domain, threads):
+def dns_aggregators(args, domain, max_threads):
 
     print("\nPerforming DNS aggregation search (passive)...")
 
@@ -229,7 +229,7 @@ enumeration_methods = {
 }
 
 
-def main(args, threads):
+def main(args, max_threads):
     #check if there is the -d flag along with the domain
     if "-d" in args:
         domain = args[args.index("-d") + 1]
@@ -275,7 +275,7 @@ def main(args, threads):
         if mode not in enumeration_methods:
             print("Invalid enumeration mode:" + mode)
             continue
-        enumeration_methods[mode](args, domain, threads)
+        enumeration_methods[mode](args, domain, max_threads)
 
 
     #remove duplicate lines from the output file

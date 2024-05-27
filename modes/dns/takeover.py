@@ -4,6 +4,8 @@ import utility
 import re
 import requests
 import threading
+import concurrent.futures
+
 
 services = {
     "AWS/S3": {"error": r"The specified bucket does not exist"},
@@ -88,7 +90,7 @@ customer and expect to see your site at this address|Web Site Not Found"
     "Anima": {
         "error": r"try refreshing in a minute|this is your website and you've just created it"
     },
-    "Fly.io": {"error": r"404 Not Found"},
+    #"Fly.io": {"error": r"404 Not Found"},
     "Gemfury": {"error": r"This page could not be found"},
     "HatenaBlog": {"error": r"404 Blog is not found"},
     "Kinsta": {"error": r"No Site For Domain"},
@@ -118,45 +120,42 @@ def output(domain, possible_takeover, service=None):
         print("[" + domain + "]" + " No possible takeover detected")
 
 
-def check_takeover(section):
+def check_takeover(domain):
 
-    #send request to each domain
-    for domain in section:
-        domain = domain.strip()
+    domain = domain.strip()
 
-        if utility.validate_domain(domain):
+    if utility.validate_domain(domain):
+        found = False
+        try:
+            url = "http://" + domain
+            response = requests.get(url, timeout=20)
+            status = response.status_code
 
-            try:
-                url = "http://" + domain
-                response = requests.get(url, timeout=20)
-                status = response.status_code
-
-                for service in services:
-                    error = services[service]["error"]
-                    if (re.findall(error, response.text, re.I)):
-                        output(domain, True, service)
-                        break
-                
-                
-                url = "https://" + domain
-                response = requests.get(url, timeout=20)
-
-                for service in services:
-                    error = services[service]["error"]
-                    if (re.findall(error, response.text, re.I)):
-                        output(domain, True, service)
-                        break
-            except requests.exceptions.RequestException as e:
-                output(domain, False)
-                continue
-
+            for service in services:
+                error = services[service]["error"]
+                if (re.findall(error, response.text, re.I)):
+                    output(domain, True, service)
+                    break
+            
+            
+            url = "https://" + domain
+            response = requests.get(url, timeout=20)
 
             
-
+            for service in services:
+                error = services[service]["error"]
+                if (re.findall(error, response.text, re.I)):
+                    output(domain, True, service)
+                    found = True
+            
+        except requests.exceptions.RequestException as e:
+            output(domain, False)
+            return
+        if not found:
             output(domain, False)
 
 
-def main(args, threads):
+def main(args, max_threads):
 
     #check if -i flag is present for input file
     if "-i" in args:
@@ -169,24 +168,8 @@ def main(args, threads):
     else:
         domains = args
 
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_threads) as executor:
+        executor.map(check_takeover, domains)
 
-    #split domain list into threads
-    thread_list = []
-    sectionlen = len(domains) // threads
-
-    for i in range(threads):
-        if (i == threads - 1):
-            section = domains[i * sectionlen:]
-        else:
-            section = domains[i * sectionlen:(i + 1) * sectionlen]
-
-        from numpy import asarray
-        section = asarray(section)
-
-        t = threading.Thread(target=check_takeover, args=(section,))
-        t.start()
-        thread_list.append(t)
-
-    for t in thread_list:
-        t.join()
+    
 

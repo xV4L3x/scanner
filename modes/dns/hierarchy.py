@@ -16,7 +16,7 @@ def output(args, line):
     print(line)
     
 
-def main(args, threads):
+def main(args, max_threads):
     #check if -d flag is present for domain
     if "-d" not in args:
         print("Usage: python main.py dns hierarchy -d <domain> -i <input_file>")
@@ -57,49 +57,67 @@ def main(args, threads):
     #class to store the subdomains in a tree structure
     class domain_node:
         def append_child(self, domain):
-            self.children.append(domain)
+            if "--maltego" in args:
+                ip = utility.check_domain_ip(domain.domain)
+                if ip is None:
+                    return
+
+            if domain not in self.children:
+                self.children.append(domain)
 
         def maltego(self):
 
-            def manage_record_types(domain):
-                record_types = ["A", "CNAME"]
-
-
-                #print(domain)
-                for record_type in record_types:
-                    result = os.popen("dig " + domain + " " + record_type + " +short").read()
-                    if len(result.split("\n")) == 2:
-                        return (record_type, result.split("\n")[0])
-                
-                print("No record found for " + domain)
-                return (None, None)        
             
             ips = {}
             cnames = {}
             types = {}
+
+            def manage_record_types(subdomain):
+                record_types = ["A", "CNAME"]
+
+                for record_type in record_types:
+                    result = os.popen("dig " + subdomain + " " + record_type + " +short").read()
+                    if len(result.split("\n")) == 2:
+                        if record_type == "A":
+                            ips[subdomain] = result.split("\n")[0]
+                        elif record_type == "CNAME":
+                            cnames[subdomain] = result.split("\n")[0][:-1]
+                        types[subdomain] = record_type
+                    elif len(result.split("\n")) > 2:
+                        if record_type == "A":
+                            ips[subdomain] = [result.split("\n")[0], result.split("\n")[1]]
+                        types[subdomain] = record_type
+            
+            
             subdomains.append(domain)
             with concurrent.futures.ThreadPoolExecutor() as executor:
-                results = executor.map(manage_record_types, subdomains)
-                for subdomain, (type, target) in zip(subdomains, results):
-                    if type == "A":
-                        ips[subdomain] = target
-                    if type == "CNAME":
-                        cnames[subdomain] = target[:-1]
-                    types[subdomain] = type
+                executor.map(manage_record_types, subdomains)
             
             #create an empty dataframe
             df = pd.DataFrame(columns=["A-Record", "CNAME-Record", "IPV4-Address", "Child-Record"])
             def fill_dataframe(node):
 
-                
+                def init_A_record(child_record=None):
+                    #check if ips[node.domain] is a list
+                    if isinstance(ips[node.domain], list):
+                        for ip in ips[node.domain]:
+                            df.loc[len(df.index)] = [
+                                node.domain, 
+                                None, 
+                                ip,
+                                child_record
+                            ]
+                    else:
+                        df.loc[len(df.index)] = [
+                            node.domain, 
+                            None, 
+                            ips[node.domain],
+                            child_record
+                        ]
+
 
                 if len(node.children) == 0 and types[node.domain] == "A":
-                    df.loc[len(df.index)] = [
-                        node.domain, 
-                        None, 
-                        ips[node.domain],
-                        None
-                    ]
+                    init_A_record()
 
                 if types[node.domain] == "CNAME":
                     df.loc[len(df.index)] = [
@@ -108,37 +126,20 @@ def main(args, threads):
                         None,
                         cnames[node.domain]
                     ]
-
-               
-
-
+                
                 for child in node.children:
-
-                    
-                    
+                    #check if child is cname
                     if types[child.domain] == "CNAME":
-                        
+                        #check if node is A
                         if types[node.domain] == "A":
-                            df.loc[len(df.index)] = [
-                                node.domain, 
-                                None, 
-                                ips[node.domain],
-                                None
-                            ]
+                            init_A_record()
 
                         fill_dataframe(child)
                         continue
 
-                    #Create A record
-                    df.loc[len(df.index)] = [
-                        None, 
-                        None, 
-                        ips[node.domain],
-                        child.domain
-                    ]
-
-                    column = types[node.domain] + "-Record" 
-                    df.loc[len(df.index) - 1][column] = node.domain
+                    #Create record
+                    if types[node.domain] == "A":
+                        init_A_record(child.domain)
 
                     fill_dataframe(child)
 
@@ -208,9 +209,10 @@ def main(args, threads):
                     root.append_child(domain_node(subdomain, root))
                     count += 1
     
-
-    root.maltego()
-    #root.print_tree(0)
+    if "--maltego" in args:
+        root.maltego()
+    else:
+        root.print_tree(0)
 
 
 
