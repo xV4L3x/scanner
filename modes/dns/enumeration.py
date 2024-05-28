@@ -34,8 +34,6 @@ def bruteforce(args, domain, max_threads):
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_threads) as executor:
         executor.map(enumerate_subdomains, lines, [domain] * len(lines))
 
-    
-
 def cert_transparency(args, domain, max_threads):
 
     print("\nPerforming certificate transparency search (passive)...")
@@ -185,9 +183,11 @@ def dns_aggregators(args, domain, max_threads):
     def anubis_db():
         print("\nChecking anubis-db...")
         url = data_sources[ANUBIS_DB]
+        status_codes = [200, 300]
         try:
+            print(url)
             response = requests.get(url)
-            if response.status_code != 200:
+            if response.status_code not in status_codes:
                 print("Failed to retrieve data from anubis-db")
                 return
         except requests.exceptions.RequestException as e:
@@ -203,6 +203,7 @@ def dns_aggregators(args, domain, max_threads):
         HACKERTARGET: hackertarget,
         DNS_DUMPSTER: dnsdumpster,
         ANUBIS_DB: anubis_db
+        #whois -h whois.radb.net 34.111.164.191 
     }
 
     #check if the -sE flag is present for search engines
@@ -215,7 +216,6 @@ def dns_aggregators(args, domain, max_threads):
         else:
             search_engines = args[args.index("-dSE") + 1].split(",")
     
-    print(data_sources.keys())
     for search_engine in search_engines:
         #get the url for the data source
         methods[search_engine]()
