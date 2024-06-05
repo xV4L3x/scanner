@@ -3,12 +3,13 @@ import re
 import sys
 import os
 import socket
-import modes.dns.dns_main as dns_main
-import dns.resolver
+import ssl
+import certifi
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
 
 
 def output(args, content, threads_safe):
-    
     print(str(content[0]) + " " + "(" + str(content[1]) + ")")
 
     if "-o" not in args:
@@ -38,12 +39,12 @@ def output(args, content, threads_safe):
     if threads_safe:
         lock.release()
 
+
 def validate_domain(domain):
     return re.match(r"^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$", domain)
-    
+
 
 def check_wordlist(args):
-
     #check if the -w flag is present for wordlist
     if "-w" not in args:
         print("Usage: python main.py dns -d <domain> -e -w <wordlist>")
@@ -61,12 +62,52 @@ def check_wordlist(args):
 
     return wordlist
 
+
 def check_domain_ip(domain):
     try:
         ip = socket.gethostbyname(domain)
-    except socket.gaierror:
-        #print("Invalid domain")
+    except socket.gaierror as e:
+        print(domain)
+        print(e)
         return None
     return ip
 
 
+def get_domains_from_input(args):
+    # check if -i flag is present for input file
+    if "-i" in args:
+        file = args[args.index("-i") + 1]
+        if not os.path.exists(file):
+            print("Input file " + file + " does not exist")
+            sys.exit(1)
+        with open(file, "r") as f:
+            domains = [line.strip() for line in f.readlines()]
+
+    else:
+        domains = []
+    return [domain.strip() for domain in domains]
+
+
+def get_certificate(domain):
+    try:
+        # Create a socket connection to the server
+        context = ssl.create_default_context()
+        context.load_verify_locations(certifi.where())
+
+        with socket.create_connection((domain, 443), timeout=10) as sock:
+            with context.wrap_socket(sock, server_hostname=domain) as ssock:
+                # Get the certificate
+                cert_bin = ssock.getpeercert(binary_form=True)
+                print("Handshake succeded for " + domain)
+                return cert_bin
+    except:
+        return None
+
+
+def extract_san(cert_bin):
+    # Load the certificate
+    cert = x509.load_der_x509_certificate(cert_bin, default_backend())
+    # Extract SANs
+    san_extension = cert.extensions.get_extension_for_class(x509.SubjectAlternativeName)
+    sans = san_extension.value
+    return sans

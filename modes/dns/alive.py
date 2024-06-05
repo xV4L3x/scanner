@@ -1,5 +1,3 @@
-import sys
-import os
 import utility
 
 
@@ -8,22 +6,14 @@ def output(args, domain):
         file = args[args.index("-o") + 1]
         with open(file, "a") as f:
             f.write(domain + "\n")
-    
+
     print(domain)
 
-def main(args, threads):
-    #check if -i flag is present for input file
-    if "-i" in args:
-        file = args[args.index("-i") + 1]
-        if not os.path.exists(file):
-            print("Input file " + file + " does not exist")
-            sys.exit(1)
-        with open(file, "r") as f:
-            domains = f.readlines()
-    else:
-        domains = args
 
-    #check if domains are alive
+def main(args, threads):
+    domains = utility.get_domains_from_input(args)
+
+    # check if domains are alive
     for domain in domains:
         domain = domain.strip()
 

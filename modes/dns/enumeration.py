@@ -1,15 +1,16 @@
-import requests 
-import socket
+import requests
 import utility
-import threading
 import concurrent.futures
 import sys
 import re
+from cryptography import x509
 
 BRUTEFORCE_MODE = 0
 CERT_TRANSPARENCY_MODE = 1
 DORKING_MODE = 2
 DNS_AGGREGATORS_MODE = 3
+SAN = 4
+
 
 def bruteforce(args, domain, max_threads):
     print("\nPerforming bruteforce attack (active)")
@@ -34,12 +35,12 @@ def bruteforce(args, domain, max_threads):
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_threads) as executor:
         executor.map(enumerate_subdomains, lines, [domain] * len(lines))
 
-def cert_transparency(args, domain, max_threads):
 
+def cert_transparency(args, domain, max_threads):
     print("\nPerforming certificate transparency search (passive)...")
 
     sources = {
-        "crt.sh" : "https://crt.sh/?q=" + domain + "&output=json"
+        "crt.sh": "https://crt.sh/?q=" + domain + "&output=json"
     }
 
     #check if the -s flag is present for data sources
@@ -52,13 +53,12 @@ def cert_transparency(args, domain, max_threads):
             data_sources = ["crt.sh"]
         else:
             data_sources = args[args.index("-s") + 1].split(",")
-            
-    
+
     for source in data_sources:
         if source not in sources:
             print("Unknown data source: " + source)
             continue
-        
+
         print("\nChecking " + source + "...")
 
         #get the url for the data source
@@ -78,24 +78,24 @@ def cert_transparency(args, domain, max_threads):
             data = response.json()
 
             for entry in data:
-                
+
                 subdomain = entry["name_value"]
-                
+
                 if subdomain[0] == "*":
                     continue
-            
+
                 subdomain_ip = utility.check_domain_ip(domain)
                 utility.output(args, (subdomain, subdomain_ip), False)
-                    
-                
-            
+
+
+
 
         except ValueError:
             print("Failed to parse JSON from " + source)
             continue
 
-def dorking(args, domain, max_threads):
 
+def dorking(args, domain, max_threads):
     print("\nPerforming dorking search (passive)...")
 
     DUCK_DUCK_GO = "duckduckgo"
@@ -107,7 +107,7 @@ def dorking(args, domain, max_threads):
         from duckduckgo_search import DDGS
 
         print("Dorking from duckduckgo...")
-        print("Executing query " + dorks[DUCK_DUCK_GO]) 
+        print("Executing query " + dorks[DUCK_DUCK_GO])
 
         results = []
         search_results = DDGS().text(dorks[DUCK_DUCK_GO], max_results=100)
@@ -136,8 +136,8 @@ def dorking(args, domain, max_threads):
     for search_engine in search_engines:
         methods[search_engine]()
 
-def dns_aggregators(args, domain, max_threads):
 
+def dns_aggregators(args, domain, max_threads):
     print("\nPerforming DNS aggregation search (passive)...")
 
     HACKERTARGET = "hackertarget"
@@ -160,14 +160,14 @@ def dns_aggregators(args, domain, max_threads):
         except requests.exceptions.RequestException as e:
             print("Failed to retrieve data from hackertarget")
             return
-        
+
         parsed_data = response.content.splitlines()
         for data in parsed_data:
             data = data.decode("utf-8")
             subdomain = data.split(",")[0]
             ip = data.split(",")[1]
 
-            utility.output(args, (subdomain,ip), False)
+            utility.output(args, (subdomain, ip), False)
 
     def dnsdumpster():
         print("\nChecking dnsdumpster...")
@@ -178,7 +178,7 @@ def dns_aggregators(args, domain, max_threads):
         for result in results:
             subdomain = result["domain"]
             ip = result["ip"]
-            utility.output(args, (subdomain,ip), False)
+            utility.output(args, (subdomain, ip), False)
 
     def anubis_db():
         print("\nChecking anubis-db...")
@@ -196,8 +196,8 @@ def dns_aggregators(args, domain, max_threads):
 
         data = response.json()
         for subdomain in data:
-            ip =  utility.check_domain_ip(subdomain)
-            utility.output(args, (subdomain,ip), False)
+            ip = utility.check_domain_ip(subdomain)
+            utility.output(args, (subdomain, ip), False)
 
     methods = {
         HACKERTARGET: hackertarget,
@@ -215,25 +215,39 @@ def dns_aggregators(args, domain, max_threads):
             search_engines = methods.keys()
         else:
             search_engines = args[args.index("-dSE") + 1].split(",")
-    
+
     for search_engine in search_engines:
         #get the url for the data source
         methods[search_engine]()
+
+
+def san(args, domain, max_threads):
+    print("\nPerforming Subject Alternative Name (SAN) enumeration (passive)...")
+
+    cert_bin = utility.get_certificate(domain)
+    sans = utility.extract_san(cert_bin)
+
+    for name in sans:
+        if isinstance(name, x509.DNSName):
+            if name.value[0] == "*":
+                continue
+            utility.output(args, (name.value, utility.check_domain_ip(name.value)), False)
 
 
 enumeration_methods = {
     BRUTEFORCE_MODE: bruteforce,
     CERT_TRANSPARENCY_MODE: cert_transparency,
     DORKING_MODE: dorking,
-    DNS_AGGREGATORS_MODE: dns_aggregators
+    DNS_AGGREGATORS_MODE: dns_aggregators,
+    SAN: san
 }
 
 
 def main(args, max_threads):
-    #check if there is the -d flag along with the domain
+    # check if there is the -d flag along with the domain
     if "-d" in args:
         domain = args[args.index("-d") + 1]
-        #check if the domain is valid with regex
+        # check if the domain is valid with regex
         valid = utility.validate_domain(domain)
         if not valid:
             print("Invalid domain")
@@ -242,16 +256,12 @@ def main(args, max_threads):
         print("Usage: python main.py dns -d <domain>")
         sys.exit(1)
 
-    
-    #get the ip address of the domain
+    # get the ip address of the domain
     ip = utility.check_domain_ip(domain)
     if ip is None:
         print("Domain not reachable")
         sys.exit(1)
     print("Checking DNS services for domain: " + domain + " (" + ip + ")")
-
-    
-
 
     print("\nEnumerating subdomains of " + domain)
 
@@ -259,26 +269,25 @@ def main(args, max_threads):
         modes = args[args.index("-m") + 1]
         if modes == "all":
             modes = enumeration_methods.keys()
-        else: 
-            #check that the mode is either an int or a list of ints separated by commas
+        else:
+            # check that the mode is either an int or a list of ints separated by commas
             if not re.match(r"^\d+(?:,\d+)*$", modes):
                 print("Invalid enumeration mode")
                 sys.exit(1)
-            #convert the mode to a list of ints
+            # convert the mode to a list of ints
             modes = list(map(int, modes.split(",")))
     else:
-        #default to brute force mode
+        # default to brute force mode
         modes = [0]
 
-    #execute enumeration for each mode
+    # execute enumeration for each mode
     for mode in modes:
         if mode not in enumeration_methods:
-            print("Invalid enumeration mode:" + mode)
+            print("Invalid enumeration mode:" + str(mode))
             continue
         enumeration_methods[mode](args, domain, max_threads)
 
-
-    #remove duplicate lines from the output file
+    # remove duplicate lines from the output file
     if "-o" in args:
         file = args[args.index("-o") + 1]
         with open(file, "r") as f:

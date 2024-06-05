@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 import sys
-import socket
 import enumeration
 import takeover
 import alive
 import hierarchy
+import asn
+import san
 
 
 ENUMERATION = "enum"
 TAKEOVER = "takeover"
 ALIVE = "alive"
 HIERARCHY = "hierarchy"
+ASN = "asn"
+SAN = "san"
 
 
 def main(args, threads):
@@ -27,14 +30,7 @@ def main(args, threads):
         alive.main(args[1:], threads)
     elif args[0] == HIERARCHY:
         hierarchy.main(args[1:], threads)
-        
-
-   
-
-
-
-
-        
-
-
-    
+    elif args[0] == ASN:
+        asn.main(args[1:], threads)
+    elif args[0] == SAN:
+        san.main(args[1:], threads)

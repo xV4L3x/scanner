@@ -1,2 +1,7 @@
 dnsdumpster
 duckduckgo_search
+IPy
+python-whois
+certifi
+cryptography
+requests

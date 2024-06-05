@@ -157,16 +157,7 @@ def check_takeover(domain):
 
 def main(args, max_threads):
 
-    #check if -i flag is present for input file
-    if "-i" in args:
-        file = args[args.index("-i") + 1]
-        if not os.path.exists(file):
-            print("Input file " + file + " does not exist")
-            sys.exit(1)
-        with open(file, "r") as f:
-            domains = f.readlines()
-    else:
-        domains = args
+    domains = utility.get_domains_from_input(args)
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_threads) as executor:
         executor.map(check_takeover, domains)
