@@ -29,8 +29,6 @@ if "-o" in sys.argv:
         if not os.path.isabs(directory):
             directory = os.path.join(os.getcwd(), directory)
 
-        #TODO: check if the user has write permissions for the directory
-
 # check if the -mT flag is present for max thread count
 if "-mT" in sys.argv:
     max_threads = int(sys.argv[sys.argv.index("-mT") + 1])
@@ -40,7 +38,5 @@ else:
 
 # switch to the specified mode
 if mode == DNS:
-    #sys.path.insert(0, 'modes/' + DNS)
-    from modes.dns import dns_main as dns
-
+    from modes.dns import main as dns
     dns.main(sys.argv[2:], max_threads)

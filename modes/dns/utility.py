@@ -67,8 +67,6 @@ def check_domain_ip(domain):
     try:
         ip = socket.gethostbyname(domain)
     except socket.gaierror as e:
-        print(domain)
-        print(e)
         return None
     return ip
 
@@ -105,6 +103,8 @@ def get_certificate(domain):
 
 
 def extract_san(cert_bin):
+    if cert_bin is None:
+        return []
     # Load the certificate
     cert = x509.load_der_x509_certificate(cert_bin, default_backend())
     # Extract SANs

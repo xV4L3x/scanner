@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import sys
-from . import enumeration
+from .enumeration import main as enumeration
 from . import takeover
 from . import alive
 from . import hierarchy
@@ -23,7 +23,8 @@ def main(args, threads):
         sys.exit(1)
 
     if args[0] == ENUMERATION:
-        enumeration.main(args[1:], threads)
+        results = enumeration.main(args[1:], threads)
+        print(results)
     elif args[0] == TAKEOVER:
         takeover.main(args[1:], threads)
     elif args[0] == ALIVE:
