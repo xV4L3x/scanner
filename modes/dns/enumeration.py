@@ -1,5 +1,5 @@
 import requests
-import utility
+from . import utility
 import concurrent.futures
 import sys
 import re

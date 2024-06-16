@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 import sys
-import enumeration
-import takeover
-import alive
-import hierarchy
-import asn
-import san
+from . import enumeration
+from . import takeover
+from . import alive
+from . import hierarchy
+from . import asn
+from . import san
 
 
 ENUMERATION = "enum"

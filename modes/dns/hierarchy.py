@@ -1,10 +1,8 @@
 import sys
-import utility
+from . import utility
 import os
-from collections import defaultdict
 import pandas as pd
 import concurrent.futures
-import dns.resolver
 
 
 def output(args, line):

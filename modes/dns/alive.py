@@ -1,4 +1,4 @@
-import utility
+from . import utility
 
 
 def output(args, domain):

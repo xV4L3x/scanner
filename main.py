@@ -10,7 +10,6 @@ if len(sys.argv) < 2:
     sys.exit(1)
 
 mode = sys.argv[1]
-sys.path.insert(0, 'modes')
 
 # Check if the -o flag is present for output file
 if "-o" in sys.argv:
@@ -41,7 +40,7 @@ else:
 
 # switch to the specified mode
 if mode == DNS:
-    sys.path.insert(0, 'modes/' + DNS)
-    import dns_main as dns
+    #sys.path.insert(0, 'modes/' + DNS)
+    from modes.dns import dns_main as dns
 
     dns.main(sys.argv[2:], max_threads)

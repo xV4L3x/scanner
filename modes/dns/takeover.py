@@ -1,9 +1,6 @@
-import os
-import sys
-import utility
+from . import utility
 import re
 import requests
-import threading
 import concurrent.futures
 
 

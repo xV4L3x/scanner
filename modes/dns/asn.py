@@ -1,8 +1,6 @@
-import os
-import sys
 import concurrent.futures
 import socket
-import utility
+from . import utility
 import whotfis_py
 import ipaddress
 import requests

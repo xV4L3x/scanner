@@ -1,4 +1,4 @@
-import utility
+from . import utility
 import concurrent.futures
 from cryptography import x509
 
