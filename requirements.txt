@@ -5,3 +5,6 @@ python-whois
 certifi
 cryptography
 requests
+python-dotenv
+mmh3
+shodan

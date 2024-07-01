@@ -6,21 +6,66 @@ from .cert_transparency import cert_transparency
 from .dorking.main import main as dorking
 from .dns_aggregators.main import main as dns_aggregators
 from .san import san
+from .favicon import favicon
 
 BRUTEFORCE_MODE = 0
 CERT_TRANSPARENCY_MODE = 1
 DORKING_MODE = 2
 DNS_AGGREGATORS_MODE = 3
 SAN = 4
+FAVICON = 5
 
 enumeration_methods = {
     BRUTEFORCE_MODE: bruteforce,
     CERT_TRANSPARENCY_MODE: cert_transparency,
     DORKING_MODE: dorking,
     DNS_AGGREGATORS_MODE: dns_aggregators,
-    SAN: san
+    SAN: san,
+    FAVICON: favicon
 }
 
+
+def enumerate(args, max_threads, modes, domain):
+    print("\nEnumerating subdomains of " + domain)
+
+    # execute enumeration for each mode
+    for mode in modes:
+        if mode not in enumeration_methods:
+            print("Invalid enumeration mode:" + str(mode))
+            continue
+        try:
+            enumeration_methods[mode](args, domain, max_threads)
+        except Exception as e:
+            print("An error occurred performing " + str(mode) + " mode")
+            print(e)
+
+    # check if -r flag is present for recursive enumeration
+    if "-r" in args:
+        # get recursive depth
+        depth = args[args.index("-r") + 1]
+        if not depth.isdigit():
+            print("Invalid depth")
+            sys.exit(1)
+
+        depth = int(depth)
+
+        # execute recursive enumeration
+        if depth > 1:
+
+            for domain in utility.found_domains:
+                domain = domain.strip()
+
+                if domain in utility.analyzed_domains or domain[0] == "*" or domain.startswith("www."):
+                    continue
+
+                new_args = args.copy()
+                new_args[args.index("-d") + 1] = domain
+                new_args[args.index("-r") + 1] = str(int(depth) - 1)
+
+                utility.analyzed_domains.append(domain)
+                enumerate(new_args, max_threads, modes, domain)
+
+    print("\nDone")
 
 def main(args, max_threads):
     # check if there is the -d flag along with the domain
@@ -44,7 +89,7 @@ def main(args, max_threads):
         sys.exit(1)
     print("Checking DNS services for domain: " + domain + " (" + ip + ")")
 
-    print("\nEnumerating subdomains of " + domain)
+
 
     if "-m" in args:
         modes = args[args.index("-m") + 1]
@@ -61,53 +106,8 @@ def main(args, max_threads):
         # default to brute force mode
         modes = [0]
 
-    # execute enumeration for each mode
-    for mode in modes:
-        if mode not in enumeration_methods:
-            print("Invalid enumeration mode:" + str(mode))
-            continue
-        enumeration_methods[mode](args, domain, max_threads)
-
-    # remove duplicate lines from the output file
-    domains_found = []
-    if "-o" in args:
-        file = args[args.index("-o") + 1]
-        with open(file, "r") as f:
-            lines = f.readlines()
-        with open(file, "w") as f:
-            domains_found = sorted(set(lines))
-            f.writelines(domains_found)
-
-    # check if -r flag is present for recursive enumeration
-    if "-r" in args:
-        # get recursive depth
-        depth = args[args.index("-r") + 1]
-        if not depth.isdigit():
-            print("Invalid depth")
-            sys.exit(1)
-
-        depth = int(depth)
-
-        # execute recursive enumeration
-        if depth > 1:
-            for domain in domains_found:
-                domain = domain.strip()
-
-                if domain in domains_found or domain[0] == "*":
-                    continue
-
-                new_args = args.copy()
-                new_args[args.index("-d") + 1] = domain
-                new_args[args.index("-r") + 1] = str(int(depth) - 1)
-
-                recursive_domains_found = main(new_args, max_threads)
-
-                # add the new domains found to the list
-                for recursive_domain in recursive_domains_found:
-                    if recursive_domain not in domains_found:
-                        domains_found.append(recursive_domain)
+    utility.init()
+    utility.analyzed_domains.append(domain)
+    enumerate(args, max_threads, modes, domain)
 
 
-
-    print("\nDone")
-    return domains_found

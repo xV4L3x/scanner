@@ -1,5 +1,6 @@
 from .. import utility
 import concurrent.futures
+from alive_progress import alive_bar
 
 
 def bruteforce(args, domain, max_threads):
@@ -21,6 +22,7 @@ def bruteforce(args, domain, max_threads):
         subdomain_ip = utility.check_domain_ip(subdomain)
         if subdomain_ip is not None:
             utility.output(args, (subdomain, subdomain_ip), True)
+
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_threads) as executor:
         executor.map(enumerate_subdomains, lines, [domain] * len(lines))

@@ -31,7 +31,7 @@ def cert_transparency(args, domain, max_threads):
         url = sources[source]
 
         try:
-            response = requests.get(url)
+            response = requests.get(url, timeout=10)
             if response.status_code != 200:
                 print("Failed to retrieve data from " + source)
                 continue

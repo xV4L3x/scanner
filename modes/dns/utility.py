@@ -9,8 +9,24 @@ from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 
 
+def init():
+    global found_domains
+    global analyzed_domains
+    found_domains = []
+    analyzed_domains = []
+
+
 def output(args, content, threads_safe):
-    print(str(content[0]) + " " + "(" + str(content[1]) + ")")
+    if content[0] in found_domains:
+        return
+    else:
+        found_domains.append(content[0])
+
+    print("\n[!] New Domain Found")
+    if len(content) > 1:
+        print(str(content[0]) + " " + "(" + str(content[1]) + ")")
+    else:
+        print(str(content[0]))
 
     if "-o" not in args:
         return
@@ -29,7 +45,7 @@ def output(args, content, threads_safe):
     with open(file, "a") as f:
         if "-oF" in args:
             format = args[args.index("-oF") + 1]
-            #replace variables that start with $ with the corresponding content
+            # replace variables that start with $ with the corresponding content
             for key, value in output_formats.items():
                 format = format.replace("$" + key, value)
             f.write(format + "\n")

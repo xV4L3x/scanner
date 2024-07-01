@@ -5,7 +5,7 @@ from duckduckgo_search import DDGS
 
 def duckduckgo(dork, args):
 
-    print("Dorking from duckduckgo...")
+    print("\nDorking from duckduckgo...")
     print("Executing query " + dork)
 
     results = []
